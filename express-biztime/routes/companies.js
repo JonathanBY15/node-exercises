@@ -14,33 +14,31 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// GET /companies/:code: Return obj of company by code, including invoices
+// GET /companies/:code: Return obj on given company with industries
 router.get('/:code', async (req, res, next) => {
-    try {
-      const { code } = req.params;
-  
-      const companyResult = await db.query(
-        'SELECT code, name, description FROM companies WHERE code = $1',
-        [code]
-      );
-  
-      if (companyResult.rows.length === 0) {
-        return res.status(404).json({ error: "Company not found" });
-      }
-  
-      const invoicesResult = await db.query(
-        'SELECT id FROM invoices WHERE comp_code = $1',
-        [code]
-      );
-  
-      const company = companyResult.rows[0];
-      company.invoices = invoicesResult.rows.map(row => row.id);
-  
-      return res.json({ company });
-    } catch (err) {
-      return next(err);
+  try {
+    const { code } = req.params;
+    const result = await db.query(
+      `SELECT c.code, c.name, c.description, 
+              array_agg(i.industry) AS industries
+       FROM companies AS c
+       LEFT JOIN companies_industries AS ci ON c.code = ci.comp_code
+       LEFT JOIN industries AS i ON ci.ind_code = i.code
+       WHERE c.code = $1
+       GROUP BY c.code`,
+      [code]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Company not found" });
     }
-  });
+
+    const company = result.rows[0];
+    return res.json({ company });
+  } catch (err) {
+    return next(err);
+  }
+});
 
 // POST /companies: Adds a new company
 router.post('/', async (req, res, next) => {

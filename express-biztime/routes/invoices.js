@@ -67,24 +67,41 @@ router.post('/', async (req, res, next) => {
   }
 });
 
+// Helper function to get the current date
+const getCurrentDate = () => new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
 // PUT /invoices/:id: Updates an invoice
 router.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { amt } = req.body;
+    const { amt, paid } = req.body;
 
+    if (typeof amt !== 'number' || typeof paid !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid request body' });
+    }
+
+    // Fetch the current invoice data
     const result = await db.query(
-      `UPDATE invoices SET amt=$1
-       WHERE id=$2
-       RETURNING id, comp_code, amt, paid, add_date, paid_date`,
-      [amt, id]
+      `SELECT id, amt, paid, paid_date FROM invoices WHERE id=$1`,
+      [id]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Invoice not found" });
+      return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    return res.json({ invoice: result.rows[0] });
+    const invoice = result.rows[0];
+    const updatedPaidDate = paid ? getCurrentDate() : null;
+
+    // Update the invoice
+    const updateResult = await db.query(
+      `UPDATE invoices SET amt=$1, paid=$2, paid_date=$3
+       WHERE id=$4
+       RETURNING id, comp_code, amt, paid, add_date, paid_date`,
+      [amt, paid, updatedPaidDate, id]
+    );
+
+    return res.json({ invoice: updateResult.rows[0] });
   } catch (err) {
     return next(err);
   }
