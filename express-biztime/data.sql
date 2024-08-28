@@ -10,7 +10,7 @@ CREATE TABLE industries (
 );
 
 -- Create a join table for companies and industries
-CREATE TABLE companies_industries (
+CREATE TABLE companies_industries ( 
     comp_code text REFERENCES companies ON DELETE CASCADE,
     ind_code text REFERENCES industries ON DELETE CASCADE,
     PRIMARY KEY (comp_code, ind_code)
